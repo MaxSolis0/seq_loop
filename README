@@ -1,0 +1,43 @@
+Package seq_loop
+-----------------------------------------------
+Description: This package aims to accomplish the tasks in Assignment 2.3 of analyzing timing of communication between ROS2 nodes.
+
+Building instructions: Place folder in src. Build normally via colcon build.
+
+*****Node: seq05*****
+Input:
+/loop05_out
+        Type: std_msgs/msg/UInt64
+
+Output:
+/seq05_out
+        Type: std_msgs/msg/UInt64
+        
+*****Node: loop05*****
+Input:
+/loop05_out
+        Type: std_msgs/msg/UInt64
+
+Output:
+/seq05_out
+        Type: std_msgs/msg/UInt64
+	
+Run:
+	ros2 launch seq_loop seq_loop.launch.py 
+	# Output file is saved in the directory with the python file to plot,
+	python3 plot_results.py
+	# Change parameters during runtime 
+	ros2 param set /seq05 depth 5
+
+Parameters:
+	reliability: [string] reliability policy used by QoS
+	durability: [string] durability policy used by QoS
+	history: [string] history policy used by QoS
+	depth: [int] Length of buffer used by QoS, if history is "keep_last"
+	
+Core components: 
+	timerCallback(): Runs the controller periodically for a sequence of setpoints or stops the robot if finished.
+	sequenceController(): Differential Drive proportional controller from X,Y target to left and right wheel speeds.
+	objectController(): Differential Drive proportional controller to track object in camera view.
+	publishCmd(): Sends the wheel speeds to the relbol_simulator node in proper structure.
+	parametersCallback(): Manages changes to parameters during runtime
