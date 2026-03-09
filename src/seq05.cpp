@@ -3,6 +3,7 @@
 #include <time.h>
 #include <fstream>
 #include <tuple>
+#include <chrono>
 #include <vector>
 #include <iostream>
 #include <mutex> //for clean program exits
@@ -74,27 +75,16 @@ private:
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        //bool found = false;
-
         // Find the record with the matching ID
         for (auto &record : records_) {
             if (record.id == msg->data) {
+                //rclcpp::Time now = this->get_clock()->now();
+                //record.received_time.tv_sec  = now.seconds();                    // seconds as integer
+                //record.received_time.tv_nsec = now.nanoseconds() % 1000000000;  // remaining nanoseconds
                 clock_gettime(CLOCK_MONOTONIC, &record.received_time);
-                //found = true;
                 break;
             }
         }
-
-        /*
-        // If no matching record was found, log it with {0,0}
-        if (!found) {
-            // Create a new record with received_time = 0,0
-            records_.push_back({msg->data, {}, {0, 0}});
-
-            std::cerr << "Warning: Message ID " << msg->data 
-                      << " not found in existing records. Logging received_time as 0,0.\n";
-        }
-        */
     }
 
 public:
@@ -111,7 +101,7 @@ void post_process()
     for (size_t idx = 0; idx < records_.size(); ++idx) {
         auto &record = records_[idx];
 
-        if (record.received_time.tv_sec == 0 && record.received_time.tv_nsec == 0) {
+        if (record.received_time.tv_sec == -1 && record.received_time.tv_nsec == -1) {
             // Log missing message
             missing_ids.push_back(record.id);
             continue; // Skip this record for RTT/jitter
@@ -227,6 +217,18 @@ int main(int argc, char **argv)
 
     // Run experiment for N messages
     int N = 5000; // e.g., 5000 messages = 5 seconds at 1 kHz
+    
+    // Create a MsgRecord with sentinel values
+    MsgRecord sentinel{};
+    sentinel.id = UINT64_MAX;          // -1 equivalent for uint64_t
+    sentinel.sent_time.tv_sec = -1;
+    sentinel.sent_time.tv_nsec = -1;
+    sentinel.received_time.tv_sec = -1;
+    sentinel.received_time.tv_nsec = -1;
+
+    // Initialize vector with N copies of sentinel
+    std::vector<MsgRecord> records_(N, sentinel);
+
     auto node = std::make_shared<Seq05>(N);
 
     rclcpp::executors::SingleThreadedExecutor exec;
