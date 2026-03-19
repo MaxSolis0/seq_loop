@@ -1,6 +1,7 @@
 Package seq_loop
 -----------------------------------------------
 Description: This package aims to accomplish the tasks in Assignment 2.3 of analyzing timing of communication between ROS2 nodes.
+Requirements: matplotlib, pandas.
 
 Building instructions: Place folder in src. Build normally via colcon build.
 
@@ -8,23 +9,27 @@ Building instructions: Place folder in src. Build normally via colcon build.
 Input:
 /loop05_out
         Type: std_msgs/msg/UInt64
+        The regurgitated message being receieved.
 
 Output:
 /seq05_out
         Type: std_msgs/msg/UInt64
+        The original message being sent.
         
 *****Node: loop05*****
 Input:
 /loop05_out
         Type: std_msgs/msg/UInt64
+        The original message being received.
 
 Output:
 /seq05_out
         Type: std_msgs/msg/UInt64
+        The message being regurgitated.
 	
 Run:
 	ros2 launch seq_loop seq_loop.launch.py 
-	# Output file is saved in the directory with the python file to plot,
+	# Output file is saved in the directory with the python file, it runs automatically after the test, if needed to run at any other time inside /scripts
 	python3 plot_results.py
 	# Change parameters during runtime 
 	ros2 param set /seq05 depth 5
@@ -36,8 +41,7 @@ Parameters:
 	depth: [int] Length of buffer used by QoS, if history is "keep_last"
 	
 Core components: 
-	timerCallback(): Runs the controller periodically for a sequence of setpoints or stops the robot if finished.
-	sequenceController(): Differential Drive proportional controller from X,Y target to left and right wheel speeds.
-	objectController(): Differential Drive proportional controller to track object in camera view.
-	publishCmd(): Sends the wheel speeds to the relbol_simulator node in proper structure.
-	parametersCallback(): Manages changes to parameters during runtime
+	loop05 - seq_callback(): Receives the original message and sends it back.
+	seq05 - timer_callback(): Sends the original messages periodically.
+	seq05 - loop_callback(): Saves the time when the regurgitated message was received.
+	seq05 - postprocess(): Runs after the whole test, checks which messages were succesfully sent for a round trip, for all successful messages calculates jitter and simple statistics, prints these statistics and the IDs of lost messages, then saves the data in a file.
