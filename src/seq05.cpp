@@ -16,14 +16,14 @@ struct MsgRecord {
 class Seq05 : public rclcpp::Node
 {
 public:
-    Seq05(int max_messages)
-    : Node("seq05"), counter_(0), max_messages_(max_messages)
+    Seq05(int maxMessages)
+    : Node("seq05"), counter_(0), maxMessages_(maxMessages)
     {
         // Declare parameters
         reliability_ = this->declare_parameter("reliability", "reliable");
         durability_ = this->declare_parameter("durability", "volatile");
         history_ = this->declare_parameter("history", "keep_last");
-        depth_ = this->declare_parameter("depth", 10);  
+        depth_ = this->declare_parameter("depth", 1);  
         
         // Get parameter initial values
         reliability_ = this->get_parameter("reliability").as_string();
@@ -54,8 +54,8 @@ private:
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (counter_ >= max_messages_) {
-            // Stop the experiment after max_messages_
+        if (counter_ >= maxMessages_) {
+            // Stop the experiment after maxMessages_
             rclcpp::shutdown();
             return;
         }
@@ -82,49 +82,49 @@ public:
     // Post-processing function after shutdown
     void post_process()
     {
-        const int64_t PERIOD_NS = 1000000; // 1 ms (1 kHz)
+        const int64_t periodNs = 1000000; // 1 ms (1 kHz)
 
-        std::vector<int64_t> send_times;
-        std::vector<int64_t> recv_times;
+        std::vector<int64_t> sendTimes;
+        std::vector<int64_t> recvTimes;
         std::vector<int64_t> rtts;
-        std::vector<int64_t> send_jitters;
-        std::vector<int64_t> rtt_jitters;
-        std::vector<size_t> missing_ids;  // IDs of messages not received
+        std::vector<int64_t> sendJitters;
+        std::vector<int64_t> rttJitters;
+        std::vector<size_t> missingIDs;  // IDs of messages not received
 
-        size_t sent_count = sends_.size();
-        size_t received_count = 0;
+        size_t sentCount = sends_.size();
+        size_t receivedCount = 0;
 
         // Process send and receive data
         for (size_t i = 0; i < sends_.size(); ++i) {
-            auto &send_record = sends_[i];
+            auto &sendRecord = sends_[i];
             bool received = false;
-            int64_t sent_ns = send_record.time.tv_sec * 1000000000LL + send_record.time.tv_nsec;
-            send_times.push_back(sent_ns);
+            int64_t sentNs = sendRecord.time.tv_sec * 1000000000LL + sendRecord.time.tv_nsec;
+            sendTimes.push_back(sentNs);
             
             // Calculate send jitter
             if (i > 0) {
-                int64_t prev_sent_ns = send_times[i - 1];
-                send_jitters.push_back(sent_ns - prev_sent_ns - PERIOD_NS);
+                int64_t prevSentNs = sendTimes[i - 1];
+                sendJitters.push_back(sentNs - prevSentNs - periodNs);
             } else {
-                send_jitters.push_back(0); // No jitter for the first message
+                sendJitters.push_back(0); // No jitter for the first message
             }
 
             // Try to find the corresponding received record by id
             for (size_t j = 0; j < receives_.size(); ++j) {
-                auto &recv_record = receives_[j];
-                if (recv_record.id == send_record.id) {
+                auto &recvRecord = receives_[j];
+                if (recvRecord.id == sendRecord.id) {
                     received = true;
-                    received_count++;
-                    int64_t recv_ns = recv_record.time.tv_sec * 1000000000LL + recv_record.time.tv_nsec;
-                    recv_times.push_back(recv_ns);
+                    receivedCount++;
+                    int64_t recv_ns = recvRecord.time.tv_sec * 1000000000LL + recvRecord.time.tv_nsec;
+                    recvTimes.push_back(recv_ns);
                   
-                    rtts.push_back(recv_ns - sent_ns);
+                    rtts.push_back(recv_ns - sentNs);
 
                     // Calculate round trip time jitter
                     if (i > 0) {
-                        rtt_jitters.push_back(rtts[i] - rtts[i - 1]);
+                        rttJitters.push_back(rtts[i] - rtts[i - 1]);
                     } else {
-                        rtt_jitters.push_back(0); // No RTT jitter for the first message
+                        rttJitters.push_back(0); // No RTT jitter for the first message
                     }
 
                     break; // Exit the loop once a match is found
@@ -133,18 +133,18 @@ public:
 
             if (!received) {
                 // If no receive record is found, log the missing message ID
-                missing_ids.push_back(send_record.id);
-                recv_times.push_back(-1); // Log -1 as receive time for missing messages
+                missingIDs.push_back(sendRecord.id);
+                recvTimes.push_back(-1); // Log -1 as receive time for missing messages
                 rtts.push_back(-1);
-                rtt_jitters.push_back(-1);
+                rttJitters.push_back(-1);
             }
         }
 
         // Output missing message info
-        if (!missing_ids.empty()) {
-            std::cout << "Warning: " << missing_ids.size() 
+        if (!missingIDs.empty()) {
+            std::cout << "Warning: " << missingIDs.size() 
                       << " messages were not received. IDs: ";
-            for (auto id : missing_ids) std::cout << id << " ";
+            for (auto id : missingIDs) std::cout << id << " ";
             std::cout << "\n";
         }
 
@@ -162,37 +162,37 @@ public:
         };
 
         // Compute stats for jitter and RTT
-        auto [send_jitter_min, send_jitter_max, send_jitter_avg] = stats(send_jitters);
-        auto [rtt_min, rtt_max, rtt_avg] = stats(rtts);
-        auto [rtt_jitter_min, rtt_jitter_max, rtt_jitter_avg] = stats(rtt_jitters);
+        auto [sendJitterMin, sendJitterMax, sendJitterAvg] = stats(sendJitters);
+        auto [rttMin, rttMax, rttAvg] = stats(rtts);
+        auto [rttJitterMin, rttJitterMax, rttJitterAvg] = stats(rttJitters);
 
         std::cout << "\nExperiment results\n";
-        std::cout << "Messages analyzed: " << received_count 
-                  << " (out of " << sent_count << " sent)\n\n";
+        std::cout << "Messages analyzed: " << receivedCount 
+                  << " (out of " << sentCount << " sent)\n\n";
 
-        std::cout << "Send jitter (ns): min=" << send_jitter_min << " max=" << send_jitter_max << " avg=" << send_jitter_avg << "\n";
-        std::cout << "RTT (ns): min=" << rtt_min << " max=" << rtt_max << " avg=" << rtt_avg << "\n";
-        std::cout << "RTT jitter (ns): min=" << rtt_jitter_min << " max=" << rtt_jitter_max << " avg=" << rtt_jitter_avg << "\n";
+        std::cout << "Send jitter (ns): min=" << sendJitterMin << " max=" << sendJitterMax << " avg=" << sendJitterAvg << "\n";
+        std::cout << "RTT (ns): min=" << rttMin << " max=" << rttMax << " avg=" << rttAvg << "\n";
+        std::cout << "RTT jitter (ns): min=" << rttJitterMin << " max=" << rttJitterMax << " avg=" << rttJitterAvg << "\n";
 
         // --- Save CSV ---
         std::ofstream file("src/seq_loop/scripts/timing_results.csv");
         file << "id,send_time_ns,recv_time_ns,rtt_ns,send_jitter_ns,rtt_jitter_ns,received\n";
 
         for (size_t i = 0; i < sends_.size(); ++i) {
-            auto &send_record = sends_[i];
-            int64_t sent_ns = send_times[i];
-            int64_t recv_ns = recv_times[i];
+            auto &sendRecord = sends_[i];
+            int64_t sentNs = sendTimes[i];
+            int64_t recv_ns = recvTimes[i];
             int64_t rtt = rtts[i];
-            int64_t send_j = send_jitters[i];
-            int64_t rtt_j = rtt_jitters[i];
+            int64_t sendJ = sendJitters[i];
+            int64_t rttJ = rttJitters[i];
             bool received = (recv_ns != -1);
 
-            file << send_record.id << ","
-                 << sent_ns << ","
+            file << sendRecord.id << ","
+                 << sentNs << ","
                  << recv_ns << ","
                  << rtt << ","
-                 << send_j << ","
-                 << rtt_j << ","
+                 << sendJ << ","
+                 << rttJ << ","
                  << received << "\n";
         }
 
@@ -206,7 +206,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
 
     int counter_;
-    int max_messages_;
+    int maxMessages_;
     std::vector<MsgRecord> sends_;
     std::vector<MsgRecord> receives_;
     

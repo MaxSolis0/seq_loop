@@ -6,7 +6,7 @@
 
 struct LoopRecord {
     uint64_t id;
-    struct timespec recv_time;
+    struct timespec recvTime;
 };
 
 class Loop05 : public rclcpp::Node
@@ -23,7 +23,7 @@ private:
         // Record receive time
         LoopRecord rec;
         rec.id = msg->data;
-        clock_gettime(CLOCK_MONOTONIC, &rec.recv_time);
+        clock_gettime(CLOCK_MONOTONIC, &rec.recvTime);
         records_.push_back(rec);
 
         // Reply with the same ID
@@ -40,7 +40,7 @@ public:
         reliability_ = this->declare_parameter("reliability", "reliable");
         durability_ = this->declare_parameter("durability", "volatile");
         history_ = this->declare_parameter("history", "keep_last");
-        depth_ = this->declare_parameter("depth", 10);  
+        depth_ = this->declare_parameter("depth", 1);  
         
         // Get parameter initial values
         reliability_ = this->get_parameter("reliability").as_string();
