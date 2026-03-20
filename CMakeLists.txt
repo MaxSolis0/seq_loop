@@ -29,7 +29,6 @@ install(TARGETS
 
 install(DIRECTORY include/
   DESTINATION include/${PROJECT_NAME}
-  OPTIONAL
 )
 
 install(PROGRAMS
@@ -41,6 +40,16 @@ install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL
 )
+
+target_include_directories(seq05 PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_compile_features(seq05 PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
+target_include_directories(loop05 PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_compile_features(loop05 PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
